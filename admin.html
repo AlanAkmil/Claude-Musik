@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hidaka Music — Admin Panel</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f0f0f;color:#fff;font-family:'Inter',system-ui,sans-serif;min-height:100vh}
+.wrap{max-width:900px;margin:0 auto;padding:24px 16px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.topbar h1{font-size:20px;font-weight:800}
+.topbar button{background:#242424;border:1px solid rgba(255,255,255,.1);color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit}
+
+/* Login screen */
+.login-box{max-width:340px;margin:80px auto;background:#1a1a1a;border-radius:16px;padding:28px;text-align:center}
+.login-box h2{font-size:18px;margin-bottom:6px}
+.login-box p{font-size:12px;color:#a0a0a0;margin-bottom:20px}
+.login-box input{width:100%;background:#242424;border:1px solid rgba(255,255,255,.1);color:#fff;padding:12px;border-radius:8px;margin-bottom:10px;font-size:14px;font-family:inherit}
+.login-box button{width:100%;background:#1db954;color:#000;border:none;padding:12px;border-radius:8px;font-weight:800;cursor:pointer;font-size:14px;font-family:inherit;margin-top:6px}
+.login-error{color:#ff6b6b;font-size:12px;margin-top:10px;min-height:16px}
+.denied{max-width:340px;margin:80px auto;text-align:center;color:#a0a0a0;font-size:14px;line-height:1.6}
+
+/* Stats */
+.stat-row{display:flex;gap:12px;margin-bottom:20px}
+.stat-card{flex:1;background:#1a1a1a;border-radius:14px;padding:16px;text-align:center}
+.stat-num{font-size:28px;font-weight:900}
+.stat-label{font-size:11px;color:#a0a0a0;margin-top:4px}
+
+.search-box{width:100%;background:#1a1a1a;border:1px solid rgba(255,255,255,.1);color:#fff;padding:12px 14px;border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:16px}
+
+/* User rows */
+.user-row{background:#1a1a1a;border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.user-row-top{display:flex;align-items:center;gap:12px}
+.user-row-bottom{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);flex-wrap:wrap}
+.admin-mini-form{display:flex;align-items:center;gap:5px;font-size:11px;color:#a0a0a0}
+.admin-mini-form input,.admin-mini-form select{background:#242424;border:1px solid rgba(255,255,255,.1);color:#fff;padding:6px 8px;border-radius:6px;font-size:11px;font-family:inherit}
+.admin-mini-form input[type=number]{width:56px;text-align:center}
+.admin-mini-form button{background:#3b82f6;color:#fff;border:none;padding:6px 10px;border-radius:6px;font-size:10px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap}
+.user-avatar{width:42px;height:42px;border-radius:50%;background:#2a2a2a;object-fit:cover;flex-shrink:0}
+.user-body{flex:1;min-width:0}
+.user-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-meta{font-size:11px;color:#a0a0a0;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-uid{font-size:9px;color:#555;margin-top:2px;font-family:monospace}
+.user-coins{flex-shrink:0;text-align:center;background:#242424;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:800;color:#fbbf24;min-width:64px}
+.coin-add-form{flex-shrink:0;display:flex;gap:6px}
+.coin-add-form input{width:64px;background:#242424;border:1px solid rgba(255,255,255,.1);color:#fff;padding:8px;border-radius:6px;font-size:12px;text-align:center;font-family:inherit}
+.coin-add-form button{background:#1db954;color:#000;border:none;padding:8px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap}
+.empty-state{text-align:center;color:#555;padding:40px 20px;font-size:13px}
+.loading-state{text-align:center;color:#a0a0a0;padding:40px 20px;font-size:13px}
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="login-box">
+  <h2>🔐 Admin Panel</h2>
+  <p>Login pakai akun admin Hidaka Music</p>
+  <button onclick="doGoogleLogin()" style="background:#fff;color:#000;margin-bottom:16px">🔵 Login pakai Google</button>
+  <div style="font-size:11px;color:#555;margin-bottom:14px">— atau pakai email/password —</div>
+  <input type="email" id="adminEmail" placeholder="Email">
+  <input type="password" id="adminPassword" placeholder="Password">
+  <button onclick="doAdminLogin()">Masuk</button>
+  <div class="login-error" id="loginError"></div>
+</div>
+
+<div id="deniedScreen" class="denied" style="display:none">
+  ⛔ Akun ini bukan admin.<br>
+  UID kamu: <code id="deniedUid" style="color:#fbbf24"></code><br><br>
+  Tambahin UID ini ke <b>ADMIN_UIDS</b> di kode admin.html, dan ke Firestore Rules, baru bisa akses.
+  <br><br><button onclick="adminSignOut()" style="background:#242424;border:1px solid rgba(255,255,255,.1);color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit">Keluar</button>
+</div>
+
+<div id="dashboard" class="wrap" style="display:none">
+  <div class="topbar">
+    <h1>🎵 Hidaka Music — Admin</h1>
+    <button onclick="adminSignOut()">Keluar</button>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="stat-num" id="statTotalUsers">–</div>
+      <div class="stat-label">Total Akun Terdaftar</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statTotalCoins">–</div>
+      <div class="stat-label">Total Koin Beredar</div>
+    </div>
+  </div>
+
+  <input type="text" class="search-box" id="searchUsers" placeholder="Cari nama atau UID..." oninput="renderUserList()">
+
+  <div id="userList"><div class="loading-state">Memuat data pengguna...</div></div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import {
+  getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import {
+  getFirestore, collection, getDocs, doc, updateDoc, increment
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// Config sama persis kayak di Hidaka Music utama
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAhuoL67FZwSNdNqbuQrY2JXPplAfRccik",
+  authDomain: "hidaka-music.firebaseapp.com",
+  projectId: "hidaka-music",
+  storageBucket: "hidaka-music.firebasestorage.app",
+  messagingSenderId: "276288771048",
+  appId: "1:276288771048:web:f62a28653051f4e889ca5d"
+};
+
+// 🔧 WAJIB DIISI: masukin UID akun yang boleh jadi admin.
+// Cara dapetin UID: login ke Hidaka Music biasa, buka Firebase Console > Authentication,
+// cari email kamu, copy kolom "User UID"-nya, taruh di sini (bisa lebih dari 1).
+const ADMIN_UIDS = [
+  "u2esJwWa3wZbzrH3td3mAN5bmdH2",
+  "H3ZU9kpUwhVbTsFuajMnzC2fv033",
+];
+
+const app = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let allUsers = [];
+
+window.doGoogleLogin = async function(){
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+  try{
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  }catch(e){
+    errEl.textContent = '❌ Login gagal: ' + (e.code || e.message);
+  }
+};
+
+window.doAdminLogin = async function(){
+  const email = document.getElementById('adminEmail').value.trim();
+  const pass = document.getElementById('adminPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+  if(!email || !pass){ errEl.textContent = 'Isi email & password dulu'; return; }
+  try{
+    await signInWithEmailAndPassword(auth, email, pass);
+  }catch(e){
+    errEl.textContent = '❌ Login gagal: ' + (e.code || e.message);
+  }
+};
+
+window.adminSignOut = function(){ signOut(auth); };
+
+onAuthStateChanged(auth, async (user)=>{
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('deniedScreen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
+
+  if(!user){
+    document.getElementById('loginScreen').style.display = 'block';
+    return;
+  }
+  if(!ADMIN_UIDS.includes(user.uid)){
+    document.getElementById('deniedUid').textContent = user.uid;
+    document.getElementById('deniedScreen').style.display = 'block';
+    return;
+  }
+  document.getElementById('dashboard').style.display = 'block';
+  await loadAllUsers();
+});
+
+async function loadAllUsers(){
+  try{
+    const snap = await getDocs(collection(db, 'user_profiles'));
+    allUsers = [];
+    snap.forEach(d => allUsers.push({ uid: d.id, ...d.data() }));
+    allUsers.sort((a,b)=>(b.joinedAt?.seconds||0)-(a.joinedAt?.seconds||0));
+    document.getElementById('statTotalUsers').textContent = allUsers.length;
+    document.getElementById('statTotalCoins').textContent =
+      allUsers.reduce((sum,u)=>sum+(u.coins||0),0).toLocaleString('id-ID');
+    renderUserList();
+  }catch(e){
+    document.getElementById('userList').innerHTML =
+      '<div class="empty-state">❌ Gagal memuat data: '+(e.code||e.message)+'<br>Cek Firestore Rules udah kasih akses admin.</div>';
+  }
+}
+
+window.renderUserList = function(){
+  const q = document.getElementById('searchUsers').value.trim().toLowerCase();
+  const filtered = !q ? allUsers : allUsers.filter(u =>
+    (u.displayName||'').toLowerCase().includes(q) || u.uid.toLowerCase().includes(q)
+  );
+  const el = document.getElementById('userList');
+  if(!filtered.length){ el.innerHTML = '<div class="empty-state">Gak ada pengguna ditemukan.</div>'; return; }
+  el.innerHTML = filtered.map(u => `
+    <div class="user-row">
+      <div class="user-row-top">
+        <img class="user-avatar" src="${u.photoURL || ''}" onerror="this.style.background='#2a2a2a'">
+        <div class="user-body">
+          <div class="user-name">${escapeHtml(u.displayName || 'Tanpa Nama')}</div>
+          <div class="user-meta">${escapeHtml((u.bio||'').slice(0,50)) || 'Belum ada bio'} • Lv.${getLevelFromPoints(u.levelPoints||0)} • ${escapeHtml(u.roleOverride||getRoleFromComments(u.commentCount||0))}</div>
+          <div class="user-uid">${u.uid}</div>
+        </div>
+        <div class="user-coins">⚡ ${(u.coins||0).toLocaleString('id-ID')}</div>
+        <div class="coin-add-form">
+          <input type="number" id="coinInput_${u.uid}" placeholder="50">
+          <button onclick="grantCoins('${u.uid}')">+ Kasih</button>
+        </div>
+      </div>
+      <div class="user-row-bottom">
+        <div class="admin-mini-form">
+          Level:
+          <input type="number" id="lvlInput_${u.uid}" min="1" max="100" placeholder="Lv.${getLevelFromPoints(u.levelPoints||0)}">
+          <button onclick="setUserLevel('${u.uid}')">Set Level</button>
+        </div>
+        <div class="admin-mini-form">
+          Rank:
+          <select id="rankInput_${u.uid}">
+            ${ROLE_TIERS.map(r=>`<option value="${r.name}">${r.name}</option>`).join('')}
+          </select>
+          <button onclick="setUserRank('${u.uid}')">Set Rank</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+};
+
+window.grantCoins = async function(uid){
+  const input = document.getElementById('coinInput_'+uid);
+  const amount = parseInt(input.value, 10);
+  if(!amount || amount <= 0){ alert('Masukin jumlah koin yang valid dulu'); return; }
+  try{
+    await updateDoc(doc(db, 'user_profiles', uid), { coins: increment(amount) });
+    const u = allUsers.find(x=>x.uid===uid);
+    if(u) u.coins = (u.coins||0) + amount;
+    input.value = '';
+    renderUserList();
+    document.getElementById('statTotalCoins').textContent =
+      allUsers.reduce((sum,x)=>sum+(x.coins||0),0).toLocaleString('id-ID');
+  }catch(e){
+    alert('❌ Gagal kasih koin: ' + (e.code || e.message) + '\n\nCek Firestore Rules udah kasih akses write admin ke user_profiles.');
+  }
+};
+
+// Sama persis kayak formula di app utama, biar Level/Rank yang ditampilin konsisten
+const ROLE_TIERS = [
+  {min:0,name:'Pendengar'},{min:10,name:'Pendengar Aktif'},{min:20,name:'Komentator'},
+  {min:30,name:'Komentator Rajin'},{min:40,name:'Kontributor'},{min:50,name:'Kontributor Setia'},
+  {min:60,name:'Legenda Komentar'},{min:70,name:'Master Komentar'},{min:80,name:'Sesepuh'},
+  {min:90,name:'Veteran Sejati'}
+];
+function getRoleFromComments(cc){
+  let name = ROLE_TIERS[0].name;
+  for(const t of ROLE_TIERS) if(cc >= t.min) name = t.name;
+  return name;
+}
+const MAX_LEVEL = 100;
+function _levelPointReq(n){ return 20 + 15*(n-1); }
+function getLevelFromPoints(totalPoints){
+  let lvl = 1, cum = 0;
+  while(lvl < MAX_LEVEL){
+    const req = _levelPointReq(lvl);
+    if(totalPoints >= cum + req){ cum += req; lvl++; } else break;
+  }
+  return lvl;
+}
+function _cumPointsForLevel(targetLevel){
+  let cum = 0;
+  for(let i=1;i<targetLevel;i++) cum += _levelPointReq(i);
+  return cum;
+}
+
+window.setUserLevel = async function(uid){
+  const input = document.getElementById('lvlInput_'+uid);
+  const targetLevel = parseInt(input.value, 10);
+  if(!targetLevel || targetLevel < 1 || targetLevel > 100){ alert('Masukin level 1-100'); return; }
+  const points = _cumPointsForLevel(targetLevel);
+  try{
+    await updateDoc(doc(db, 'user_profiles', uid), { levelPoints: points });
+    const u = allUsers.find(x=>x.uid===uid);
+    if(u) u.levelPoints = points;
+    input.value = '';
+    renderUserList();
+  }catch(e){
+    alert('❌ Gagal set level: ' + (e.code || e.message));
+  }
+};
+
+window.setUserRank = async function(uid){
+  const select = document.getElementById('rankInput_'+uid);
+  const rank = select.value;
+  try{
+    await updateDoc(doc(db, 'user_profiles', uid), { roleOverride: rank });
+    const u = allUsers.find(x=>x.uid===uid);
+    if(u) u.roleOverride = rank;
+    renderUserList();
+  }catch(e){
+    alert('❌ Gagal set rank: ' + (e.code || e.message));
+  }
+};
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
