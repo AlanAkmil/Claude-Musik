@@ -1,0 +1,8 @@
+{
+  "name": "hidaka-musik-ytmusicapi",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "ytmusic-api": "^5.2.2"
+  }
+}
