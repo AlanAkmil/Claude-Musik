@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { YTMusic } from 'ytmusic-api';
+import YTMusic from 'ytmusic-api';
 
 const BLACKLIST_PATTERNS = [
   /\bgameplay\b/i, /\blet'?s play\b/i, /\bplaythrough\b/i, /\bwalkthrough\b/i,
