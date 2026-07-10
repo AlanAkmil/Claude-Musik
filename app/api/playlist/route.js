@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { YTMusic } from 'ytmusic-api';
+import YTMusic from 'ytmusic-api';
 
 let _ytmusicClient = null;
 async function getClient() {
