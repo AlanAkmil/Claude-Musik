@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    { "source": "/sw.js", "destination": "/sw.js" },
+    { "source": "/manifest.json", "destination": "/manifest.json" },
+    { "source": "/icon-192.png", "destination": "/icon-192.png" },
+    { "source": "/icon-512.png", "destination": "/icon-512.png" },
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/search", "destination": "/index.html" },
+    { "source": "/library", "destination": "/index.html" },
+    { "source": "/developer", "destination": "/index.html" },
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/profile", "destination": "/index.html" },
+    { "source": "/misi", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
