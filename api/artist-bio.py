@@ -1,8 +1,51 @@
 from http.server import BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, urlencode
 import json
 import os
 import urllib.request
+
+
+LANG_NAMES = {
+    "id": "Bahasa Indonesia",
+    "en": "English",
+    "ru": "Russian",
+    "fil": "Filipino",
+    "ar": "Arabic",
+    "ms": "Malay",
+    "th": "Thai",
+    "pt": "Portuguese",
+    "de": "German",
+    "ja": "Japanese",
+    "zh": "Chinese",
+    "ko": "Korean",
+}
+
+
+def search_web(query):
+    """Cari info soal artis lewat Google Custom Search, buat dijadiin konteks AI.
+    Return None kalau key belum di-set atau pencarian gagal (biar fallback jalan)."""
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    cx = os.environ.get("GOOGLE_CX")
+    if not api_key or not cx:
+        return None
+    try:
+        params = urlencode({"key": api_key, "cx": cx, "q": query, "num": 5})
+        url = f"https://www.googleapis.com/customsearch/v1?{params}"
+        req = urllib.request.Request(url, headers={"User-Agent": "HidakaMusik/1.0"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        items = data.get("items", [])
+        if not items:
+            return None
+        snippets = []
+        for item in items[:5]:
+            title = item.get("title", "")
+            snippet = item.get("snippet", "")
+            if title or snippet:
+                snippets.append(f"- {title}: {snippet}")
+        return "\n".join(snippets) if snippets else None
+    except Exception:
+        return None
 
 
 class handler(BaseHTTPRequestHandler):
@@ -16,6 +59,8 @@ class handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         params = parse_qs(parsed.query)
         name = params.get("name", [None])[0]
+        lang = params.get("lang", ["id"])[0]
+        lang_name = LANG_NAMES.get(lang, "Bahasa Indonesia")
 
         if not name:
             self._send_json({"error": "Artist name required"}, 400)
@@ -27,13 +72,30 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            prompt = (
-                f'Tulis bio artis musik "{name}" dalam bahasa Indonesia, 3-4 kalimat yang panjang dan natural. '
-                "Ceritakan genre musiknya, gaya bermusik, hal unik yang membuat mereka berbeda, dan dampaknya "
-                'terhadap pendengar. Kalau artis ini tidak terkenal, buat bio yang masuk akal berdasarkan nama '
-                'dan kemungkinan genre musiknya. Jangan tulis "saya tidak tahu" atau "tidak ada info". '
-                "Langsung tulis bionya saja tanpa intro atau kata pembuka."
-            )
+            # Riset dulu lewat Google Search sebelum nulis bio, biar AI-nya
+            # gak cuma ngarang dari training data doang (kalau key belum di-set,
+            # ini otomatis di-skip dan fallback ke cara lama)
+            search_context = search_web(f"{name} musician artist biography genre")
+
+            if search_context:
+                prompt = (
+                    f'Here are some real search results about the music artist "{name}":\n\n'
+                    f"{search_context}\n\n"
+                    f"Based on this information, write an artist bio in {lang_name}, 3-4 long and "
+                    "natural sentences. Describe their music genre, musical style, what makes them "
+                    "unique, and their impact on listeners. Write only the bio itself, no intro, no "
+                    f"mention of 'search results' or sources. Respond entirely in {lang_name}."
+                )
+            else:
+                prompt = (
+                    f'Write a music artist bio for "{name}" in {lang_name}, 3-4 long and natural sentences. '
+                    "Describe their music genre, musical style, what makes them unique, and their impact on "
+                    f"listeners. If this artist isn't well-known, write a plausible bio based on the name and "
+                    f'likely genre. Never write "I don\'t know" or "no info available". '
+                    "Write only the bio itself, no intro or preamble. Respond entirely in "
+                    f"{lang_name}."
+                )
+
             body = json.dumps({
                 "model": "llama-3.3-70b-versatile",
                 "max_tokens": 300,
@@ -56,7 +118,7 @@ class handler(BaseHTTPRequestHandler):
             if not bio:
                 raise Exception("Empty response")
 
-            self._send_json({"bio": bio}, 200, cache=True)
+            self._send_json({"bio": bio, "grounded": bool(search_context)}, 200, cache=True)
         except Exception as e:
             self._send_json({"error": str(e)}, 500)
 
